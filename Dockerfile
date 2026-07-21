@@ -2,7 +2,7 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev=false
+RUN npm ci
 
 # ---- build ----
 FROM node:20-bookworm-slim AS build
@@ -18,7 +18,7 @@ RUN chmod +x ./node_modules/.bin/tsc \
 FROM node:20-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
-RUN addgroup -S app && adduser -S app -G app
+
 
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
@@ -26,7 +26,7 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
-USER app
+
 EXPOSE 4000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
