@@ -108,12 +108,24 @@ export const authController = {
     res.status(200).json({ data: { refreshed: true } });
   },
 
-  async logout(req: AuthenticatedRequest, res: Response) {
-    const token = req.cookies?.[REFRESH_COOKIE];
-    await authService.logout(token, requestContext(req), req.user?.id);
-    clearAuthCookies(res);
-    res.status(200).json({ data: { loggedOut: true } });
-  },
+async logout(req: AuthenticatedRequest, res: Response) {
+  console.log("STEP 1");
+
+  const token = req.cookies?.[REFRESH_COOKIE];
+  console.log("STEP 2");
+
+  await authService.logout(token, requestContext(req), req.user?.id);
+  console.log("STEP 3");
+
+  clearAuthCookies(res);
+  console.log("STEP 4");
+
+  res.status(200).json({
+    data: { loggedOut: true },
+  });
+
+  console.log("STEP 5");
+},
 
   async forgotPassword(req: Request<ParamsDictionary, unknown, ForgotPasswordInput>, res: Response) {
     await authService.forgotPassword(req.body, requestContext(req));
