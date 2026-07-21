@@ -1,11 +1,11 @@
 # ---- deps ----
-FROM node:20-alpine AS deps
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev=false
 
 # ---- build ----
-FROM node:20-alpine AS build
+FROM node:20-bookworm-slim AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -15,7 +15,7 @@ RUN chmod +x ./node_modules/.bin/tsc \
  && npm run build
 
 # ---- production ----
-FROM node:20-alpine AS production
+FROM node:20-bookworm-slim AS production
 WORKDIR /app
 ENV NODE_ENV=production
 RUN addgroup -S app && adduser -S app -G app
