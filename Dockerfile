@@ -1,5 +1,10 @@
 # ---- deps ----
 FROM node:20-bookworm-slim AS deps
+
+RUN apt-get update && \
+    apt-get install -y openssl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
@@ -16,6 +21,11 @@ RUN chmod +x ./node_modules/.bin/tsc \
 
 # ---- production ----
 FROM node:20-bookworm-slim AS production
+
+RUN apt-get update && \
+    apt-get install -y openssl ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 ENV NODE_ENV=production
 
