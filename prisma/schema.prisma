@@ -1,0 +1,448 @@
+// ============================================================================
+// 4xGem Trading Signals Platform — Prisma Schema
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Auth / Users / RBAC
+// ---------------------------------------------------------------------------
+
+enum RoleName {
+  ADMIN
+  EDITOR
+  ANALYST
+  SUBSCRIBER
+  USER
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        RoleName     @unique
+  description String?
+  permissions Permission[] @relation("RolePermissions")
+  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String   @id @default(uuid())
+  key       String   @unique // e.g. "signals:create", "users:manage"
+  label     String
+  roles     Role[]   @relation("RolePermissions")
+  createdAt DateTime @default(now())
+
+  @@map("permissions")
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+  DEACTIVATED
+}
+
+model User {
+  id                    String     @id @default(uuid())
+  email                 String     @unique
+  passwordHash          String?
+  googleId              String?    @unique
+  firstName             String?
+  lastName              String?
+  avatarUrl             String?
+  status                UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt       DateTime?
+  roleId                String
+  role                  Role       @relation(fields: [roleId], references: [id])
+  twoFactorEnabled      Boolean    @default(false)
+  twoFactorSecret       String?
+  lastLoginAt           DateTime?
+  lastLoginIp           String?
+  createdAt             DateTime   @default(now())
+  updatedAt             DateTime   @updatedAt
+  deletedAt             DateTime?
+
+  refreshTokens         RefreshToken[]
+  sessions              Session[]
+  subscriptions         Subscription[]
+  payments              Payment[]
+  notifications         Notification[]
+  preferences           UserPreference?
+  activityLogs          ActivityLog[]
+  passwordResetTokens   PasswordResetToken[]
+  twoFactorRecoveryCodes TwoFactorRecoveryCode[]
+  emailVerificationTokens EmailVerificationToken[]
+  createdSignals        TradingSignal[] @relation("SignalAuthor")
+  createdNews           NewsArticle[]   @relation("NewsAuthor")
+  educationProgress     UserEducationProgress[]
+
+  @@index([email])
+  @@index([roleId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  userAgent   String?
+  ipAddress   String?
+  revokedAt   DateTime?
+  replacedBy  String?
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Session {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent    String?
+  ipAddress    String?
+  lastActiveAt DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
+}
+
+model TwoFactorRecoveryCode {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String    @unique
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("two_factor_recovery_codes")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("email_verification_tokens")
+}
+
+model UserPreference {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  theme               String   @default("dark")
+  emailAlerts         Boolean  @default(true)
+  pushAlerts          Boolean  @default(false)
+  telegramAlerts      Boolean  @default(false)
+  favoriteInstruments String[] @default([])
+  timezone            String   @default("UTC")
+  updatedAt           DateTime @updatedAt
+
+  @@map("user_preferences")
+}
+
+model ActivityLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   // e.g. "auth.login", "signal.create"
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@map("activity_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Billing
+// ---------------------------------------------------------------------------
+
+enum PlanTier {
+  FREE
+  BASIC
+  PREMIUM
+  VIP
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  EXPIRED
+}
+
+model Plan {
+  id               String   @id @default(uuid())
+  tier             PlanTier @unique
+  name             String
+  priceCents       Int
+  currency         String   @default("usd")
+  interval         String   @default("month")
+  stripePriceId    String?  @unique
+  features         String[] @default([])
+  isActive         Boolean  @default(true)
+  subscriptions    Subscription[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                   String             @id @default(uuid())
+  userId               String
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId               String
+  plan                 Plan               @relation(fields: [planId], references: [id])
+  status               SubscriptionStatus @default(ACTIVE)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+  payments             Payment[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([userId])
+  @@map("subscriptions")
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id                    String        @id @default(uuid())
+  userId                String
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subscriptionId        String?
+  subscription          Subscription? @relation(fields: [subscriptionId], references: [id])
+  amountCents           Int
+  currency              String        @default("usd")
+  status                PaymentStatus @default(PENDING)
+  stripePaymentIntentId String?       @unique
+  invoiceUrl            String?
+  createdAt             DateTime      @default(now())
+
+  @@index([userId])
+  @@map("payments")
+}
+
+// ---------------------------------------------------------------------------
+// Product domain: signals, news, analytics, notifications
+// ---------------------------------------------------------------------------
+
+enum SignalDirection {
+  BUY
+  SELL
+  BUY_LIMIT
+  SELL_LIMIT
+}
+
+enum SignalStatus {
+  OPEN
+  RUNNING
+  HIT_TP1
+  HIT_TP2
+  HIT_TP3
+  HIT_SL
+  CLOSED
+}
+
+enum InstrumentCategory {
+  FOREX
+  GOLD
+  CRYPTO
+  INDICES
+  COMMODITIES
+}
+
+model TradingSignal {
+  id             String             @id @default(uuid())
+  authorId       String
+  author         User               @relation("SignalAuthor", fields: [authorId], references: [id])
+  pair           String
+  name           String
+  category       InstrumentCategory
+  direction      SignalDirection
+  entry          Decimal            @db.Decimal(18, 6)
+  stopLoss       Decimal            @db.Decimal(18, 6)
+  takeProfit1    Decimal            @db.Decimal(18, 6)
+  takeProfit2    Decimal?           @db.Decimal(18, 6)
+  takeProfit3    Decimal?           @db.Decimal(18, 6)
+  riskPercent    Decimal            @db.Decimal(5, 2)
+  status         SignalStatus       @default(OPEN)
+  confidence     Int                @default(50)
+  pips           Int                @default(0)
+  requiredTier   PlanTier           @default(FREE)
+  closedAt       DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([status])
+  @@index([category])
+  @@map("trading_signals")
+}
+
+enum NewsImpact {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model NewsArticle {
+  id         String             @id @default(uuid())
+  authorId   String
+  author     User               @relation("NewsAuthor", fields: [authorId], references: [id])
+  category   InstrumentCategory
+  impact     NewsImpact         @default(MEDIUM)
+  title      String
+  summary    String
+  body       String?
+  publishedAt DateTime          @default(now())
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  @@index([category])
+  @@index([publishedAt])
+  @@map("news_articles")
+}
+
+model EconomicEvent {
+  id         String     @id @default(uuid())
+  eventTime  DateTime
+  country    String
+  currency   String
+  title      String
+  impact     NewsImpact @default(MEDIUM)
+  previous   String?
+  forecast   String?
+  actual     String?
+  createdAt  DateTime   @default(now())
+
+  @@index([eventTime])
+  @@map("economic_events")
+}
+
+enum NotificationType {
+  SIGNAL
+  NEWS
+  BILLING
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  readAt    DateTime?
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([readAt])
+  @@map("notifications")
+}
+
+model AnalyticsSnapshot {
+  id            String   @id @default(uuid())
+  periodStart   DateTime
+  periodEnd     DateTime
+  totalSignals  Int      @default(0)
+  winRate       Decimal  @db.Decimal(5, 2)
+  totalPips     Int      @default(0)
+  newSubscribers Int     @default(0)
+  churnedSubscribers Int @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([periodStart])
+  @@map("analytics_snapshots")
+}
+
+// ---------------------------------------------------------------------------
+// Education
+// ---------------------------------------------------------------------------
+
+enum EducationLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  ALL_LEVELS
+}
+
+model EducationTopic {
+  id           String                  @id @default(uuid())
+  title        String
+  icon         String // emoji, kept simple — no asset pipeline yet
+  level        EducationLevel
+  lessonsCount Int                     @default(0)
+  color        String                  @default("#2563EB")
+  sortOrder    Int                     @default(0)
+  isActive     Boolean                 @default(true)
+  progress     UserEducationProgress[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+
+  @@map("education_topics")
+}
+
+model UserEducationProgress {
+  id              String         @id @default(uuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId         String
+  topic           EducationTopic @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  progressPercent Int            @default(0)
+  completedAt     DateTime?
+  updatedAt       DateTime       @updatedAt
+
+  @@unique([userId, topicId])
+  @@map("user_education_progress")
+}

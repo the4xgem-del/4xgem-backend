@@ -1,0 +1,30 @@
+import { Router } from "express";
+import { authRouter } from "@/modules/auth/auth.routes";
+import { healthRouter } from "@/modules/health/health.routes";
+import { signalsRouter } from "@/modules/signals/signals.routes";
+import { newsRouter } from "@/modules/news/news.routes";
+import { calendarRouter } from "@/modules/calendar/calendar.routes";
+import { plansRouter } from "@/modules/plans/plans.routes";
+import { notificationsRouter } from "@/modules/notifications/notifications.routes";
+import { usersRouter } from "@/modules/users/users.routes";
+import { billingRouter } from "@/modules/billing/billing.routes";
+import { analyticsRouter } from "@/modules/analytics/analytics.routes";
+import { educationRouter } from "@/modules/education/education.routes";
+import { meRouter } from "@/modules/me/me.routes";
+import { marketRouter } from "@/modules/market/market.routes";
+
+export const apiRouter = Router();
+
+apiRouter.use("/health", healthRouter);
+apiRouter.use("/auth", authRouter);
+apiRouter.use("/signals", signalsRouter);
+apiRouter.use("/news", newsRouter);
+apiRouter.use("/calendar", calendarRouter);
+apiRouter.use("/plans", plansRouter);
+apiRouter.use("/notifications", notificationsRouter);
+apiRouter.use("/users", usersRouter);
+apiRouter.use("/billing", billingRouter);
+apiRouter.use("/analytics", analyticsRouter);
+apiRouter.use("/education", educationRouter);
+apiRouter.use("/me", meRouter);
+apiRouter.use("/market", marketRouter);
