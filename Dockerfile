@@ -10,7 +10,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN chmod +x ./node_modules/.bin/prisma && ./node_modules/.bin/prisma generate
-RUN npm run build
+RUN chmod +x ./node_modules/.bin/tsc \
+ && chmod +x ./node_modules/.bin/tsc-alias \
+ && npm run build
 
 # ---- production ----
 FROM node:20-alpine AS production
