@@ -21,9 +21,9 @@ const ACCESS_COOKIE = "access_token";
 
 const cookieBase = {
   httpOnly: true,
-  secure: env.COOKIE_SECURE,
-  sameSite: "lax" as const,
-  domain: env.COOKIE_DOMAIN,
+  secure: true,
+  sameSite: "none" as const,
+  domain: env.COOKIE_DOMAIN || undefined,
   path: "/",
 };
 
