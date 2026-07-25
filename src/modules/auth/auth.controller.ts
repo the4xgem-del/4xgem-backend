@@ -97,16 +97,36 @@ export const authController = {
     res.status(200).json({ data: result });
   },
 
-  async refresh(req: Request, res: Response) {
-    const token = req.cookies?.[REFRESH_COOKIE];
-    if (!token) {
-      res.status(401).json({ error: { code: "AUTH_REQUIRED", message: "No active session." } });
-      return;
-    }
-    const { accessToken, refreshToken } = await authService.refresh(token, requestContext(req));
-    setAuthCookies(res, accessToken, refreshToken);
-    res.status(200).json({ data: { refreshed: true } });
-  },
+async refresh(req: Request, res: Response) {
+  console.log("Cookies:", req.cookies);
+
+  const token = req.cookies?.[REFRESH_COOKIE];
+
+  console.log("Refresh Token:", token);
+
+  if (!token) {
+    res.status(401).json({
+      error: {
+        code: "AUTH_REQUIRED",
+        message: "No active session.",
+      },
+    });
+    return;
+  }
+
+  const { accessToken, refreshToken } = await authService.refresh(
+    token,
+    requestContext(req)
+  );
+
+  setAuthCookies(res, accessToken, refreshToken);
+
+  res.status(200).json({
+    data: {
+      refreshed: true,
+    },
+  });
+},
 
 async logout(req: AuthenticatedRequest, res: Response) {
   console.log("STEP 1");
