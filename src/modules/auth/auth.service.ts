@@ -367,33 +367,61 @@ export const authService = {
     await logActivity(userId, "auth.2fa_recovery_codes_regenerated", ctx);
     return { recoveryCodes };
   },
-
-  async refresh(refreshTokenJwt: string, ctx: RequestContext) {
+async refresh(refreshTokenJwt: string, ctx: RequestContext) {
+  try {
     let payload;
+
     try {
       payload = verifyRefreshToken(refreshTokenJwt);
-    } catch {
+      console.log("Refresh Payload:", payload);
+    } catch (err) {
+      console.error("JWT Verify Error:", err);
       throw new ApiError(401, "INVALID_REFRESH_TOKEN", "Session expired. Please log in again.");
     }
 
-    const record = await prisma.refreshToken.findUnique({ where: { id: payload.jti } });
+    const record = await prisma.refreshToken.findUnique({
+      where: { id: payload.jti },
+    });
+
+    console.log("Refresh Record:", record);
+
     if (!record || record.revokedAt || record.expiresAt < new Date()) {
       throw new ApiError(401, "INVALID_REFRESH_TOKEN", "Session expired. Please log in again.");
     }
 
-    const user = await prisma.user.findUnique({ where: { id: payload.sub }, include: { role: true } });
-    if (!user) throw new ApiError(401, "INVALID_REFRESH_TOKEN", "Session expired. Please log in again.");
+    const user = await prisma.user.findUnique({
+      where: { id: payload.sub },
+      include: { role: true },
+    });
 
-    // Rotate: revoke old refresh token, issue a new one (mitigates replay).
-    const { jwtToken: newRefreshToken, recordId } = await issueRefreshToken(user.id, ctx);
+    console.log("Refresh User:", user);
+
+    if (!user) {
+      throw new ApiError(401, "INVALID_REFRESH_TOKEN", "Session expired. Please log in again.");
+    }
+
+    const { jwtToken: newRefreshToken, recordId } =
+      await issueRefreshToken(user.id, ctx);
+
     await prisma.refreshToken.update({
       where: { id: record.id },
-      data: { revokedAt: new Date(), replacedBy: recordId },
+      data: {
+        revokedAt: new Date(),
+        replacedBy: recordId,
+      },
     });
 
     const accessToken = toAuthTokens(user);
-    return { accessToken, refreshToken: newRefreshToken };
-  },
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
+  } catch (err) {
+    console.error("REFRESH ERROR:", err);
+    throw err;
+  }
+},
 
   async logout(refreshTokenJwt: string | undefined, ctx: RequestContext, userId?: string) {
     if (refreshTokenJwt) {
