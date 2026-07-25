@@ -6,7 +6,7 @@ import type { ListNewsQuery, CreateNewsInput } from "./news.schema";
 
 export const newsService = {
   async list(query: ListNewsQuery) {
-  const apiKey = process.env.NEWS_API_KEY;
+const apiKey = process.env.NEWS_API_KEY;
 
 if (!apiKey) {
   throw new Error("NEWS_API_KEY is missing.");
@@ -20,12 +20,16 @@ const response = await axios.get(
       lang: "en",
       sortby: "publishedAt",
       max: query.pageSize,
-      apikey: process.env.GNEWS_API_KEY,
+      apikey: apiKey,
     },
   }
 );
 
-const items = response.data.articles.map((article: any, index: number) => ({
+console.log("GNews Response:", response.data);
+
+const articles = response.data.articles ?? [];
+
+const items = articles.map((article: any, index: number) => ({
   id: article.url || String(index),
   title: article.title,
   summary: article.description,
