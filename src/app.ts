@@ -71,6 +71,7 @@ export function createApp() {
       req.path.startsWith("/api/v1/auth/register") ||
       req.path.startsWith("/api/v1/auth/google") ||
         req.path.startsWith("/api/v1/auth/refresh") ||
+          req.path.startsWith("/api/v1/auth/logout") || 
       req.path.startsWith("/api/v1/auth/2fa/login-verify") ||
       req.path.startsWith("/api/v1/billing/webhook");
     if (exempt || ["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
