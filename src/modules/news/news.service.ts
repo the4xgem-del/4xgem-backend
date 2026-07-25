@@ -13,15 +13,14 @@ if (!apiKey) {
 }
 
 const response = await axios.get(
-  "https://newsapi.org/v2/everything",
+  "https://gnews.io/api/v4/search",
   {
     params: {
       q: "forex OR gold OR crypto OR bitcoin",
-      language: "en",
-      sortBy: "publishedAt",
-      pageSize: query.pageSize,
-      page: query.page,
-      apiKey,
+      lang: "en",
+      sortby: "publishedAt",
+      max: query.pageSize,
+      apikey: process.env.GNEWS_API_KEY,
     },
   }
 );
@@ -30,7 +29,7 @@ const items = response.data.articles.map((article: any, index: number) => ({
   id: article.url || String(index),
   title: article.title,
   summary: article.description,
-  imageUrl: article.urlToImage,
+  imageUrl: article.image,
   source: article.source?.name,
   url: article.url,
   publishedAt: article.publishedAt,
