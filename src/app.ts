@@ -36,27 +36,12 @@ export function createApp() {
       crossOriginResourcePolicy: { policy: "cross-origin" }, // API is consumed by a separate frontend origin
     }),
   );
-app.use(
-  cors({
-    origin: [
-      "https://4xgem-frontend-v21.vercel.app",
-    ],
-    credentials: true,
-    methods: [
-      "GET",
-      "POST",
-      "PUT",
-      "PATCH",
-      "DELETE",
-      "OPTIONS",
-    ],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-CSRF-Token",
-    ],
-  }),
-);
+  app.use(
+    cors({
+      origin: env.WEB_APP_URL,
+      credentials: true,
+    }),
+  );
   app.use(compression());
   app.use(cookieParser());
 
