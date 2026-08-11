@@ -6,40 +6,60 @@ import type { ListNewsQuery, CreateNewsInput } from "./news.schema";
 
 export const newsService = {
   async list(query: ListNewsQuery) {
-    const apiKey = process.env.GNEWS_API_KEY;
+    const apiKey = process.env.NEWS_API_KEY;
+    const apiUrl =
+      process.env.NEWS_API_URL ||
+      "https://newsapi.org/v2/everything";
 
     if (!apiKey) {
-      throw new Error("GNEWS_API_KEY is missing.");
+      throw new Error("NEWS_API_KEY is missing.");
     }
 
     const page = query.page ?? 1;
-    const pageSize = Math.min(query.pageSize ?? 10, 10);
+    const pageSize = Math.min(query.pageSize ?? 10, 20);
 
-    const response = await axios.get(
-      "https://gnews.io/api/v4/search",
-      {
-        params: {
-          q: "(forex OR gold OR crypto OR bitcoin)",
-          lang: "en",
-          sortby: "publishedAt",
-          max: pageSize,
-          page,
-          apikey: apiKey,
-        },
+    const response = await axios.get(apiUrl, {
+      params: {
+        q: "(forex OR gold OR bitcoin OR cryptocurrency OR ethereum)",
+        language: "en",
+        sortBy: "publishedAt",
+        pageSize,
+        page,
+        apiKey,
       },
-    );
+      timeout: 10000,
+    });
 
     const articles = response.data.articles ?? [];
-    const total = response.data.totalArticles ?? 0;
+    const total = response.data.totalResults ?? 0;
 
-    const items = articles.map((article: any) => ({
-      id: article.id || article.url,
-      title: article.title,
-      summary: article.description ?? "",
-      imageUrl: article.image ?? "",
-      source: article.source?.name ?? "Unknown",
-      url: article.url,
-      publishedAt: article.publishedAt,
+    const items = articles.map((article: any, index: number) => ({
+      id:
+        article.url ||
+        `${article.publishedAt}-${index}`,
+
+      title: article.title ?? "",
+
+      summary:
+        article.description ??
+        article.content ??
+        "",
+
+      imageUrl:
+        article.urlToImage ??
+        "",
+
+      source:
+        article.source?.name ??
+        "Unknown",
+
+      url:
+        article.url ??
+        "",
+
+      publishedAt:
+        article.publishedAt ??
+        new Date().toISOString(),
     }));
 
     return {
@@ -65,7 +85,10 @@ export const newsService = {
     return article;
   },
 
-  async create(authorId: string, input: CreateNewsInput) {
+  async create(
+    authorId: string,
+    input: CreateNewsInput,
+  ) {
     const article = await prisma.newsArticle.create({
       data: {
         ...input,
